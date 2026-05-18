@@ -1,0 +1,17 @@
+*
+!*/
+
+!.gitignore
+!AGENTS.md
+!README.md
+!Makefile
+
+!go.mod
+!go.sum
+!*.go
+!**/*.go
+
+# Required by go:embed in main.go.
+!logo.png
+!fonts/Passion_One/PassionOne-Bold.ttf
+!fonts/Passion_One/OFL.txt
