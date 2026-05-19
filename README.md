@@ -195,7 +195,7 @@ Set outro subtitle:
 ./countdownnow --subtitle "We are glad you are here."
 ```
 
-Use a custom font for all text:
+Use a custom font file for all text:
 
 ```sh
 ./countdownnow --font ./fonts/Passion_One/PassionOne-Bold.ttf
