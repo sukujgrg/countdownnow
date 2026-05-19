@@ -1007,10 +1007,11 @@ func buildFilterGraph(cfg Config, logoIndex int) string {
 	current := "base"
 	switch progressStyle(cfg.ProgressStyle) {
 	case "bottom-bar", "bar":
+		progressEnd := progressEndTime(cfg.Duration)
 		chains = append(chains,
-			fmt.Sprintf("[base]drawbox=x=%d:y=%d:w=%d:h=%d:color=%s:t=fill:enable='lt(t,%s)'[bar_bg]", cfg.BarX, cfg.BarY, cfg.BarWidth, cfg.BarHeight, theme.ProgressBackColor, ff(outroStart)),
-			fmt.Sprintf("[1:v]scale=w='max(1,%d*max(%s-t,0)/%s)':h=%d:eval=frame[bar]", cfg.BarWidth, ff(cfg.Duration), ff(cfg.Duration), cfg.BarHeight),
-			fmt.Sprintf("[bar_bg][bar]overlay=x=%d:y=%d:format=auto:enable='lt(t,%s)'[with_progress]", cfg.BarX, cfg.BarY, ff(outroStart)),
+			fmt.Sprintf("[base]drawbox=x=%d:y=%d:w=%d:h=%d:color=%s:t=fill:enable='lt(t,%s)'[bar_bg]", cfg.BarX, cfg.BarY, cfg.BarWidth, cfg.BarHeight, theme.ProgressBackColor, ff(progressEnd)),
+			fmt.Sprintf("[1:v]scale=w='max(1,%d*max(%s-t,0)/%s)':h=%d:eval=frame[bar]", cfg.BarWidth, ff(progressEnd), ff(progressEnd), cfg.BarHeight),
+			fmt.Sprintf("[bar_bg][bar]overlay=x=%d:y=%d:format=auto:enable='lt(t,%s)'[with_progress]", cfg.BarX, cfg.BarY, ff(progressEnd)),
 		)
 		current = "with_progress"
 	case "none":
@@ -1139,6 +1140,14 @@ func outroTiming(outroSeconds float64) outroTransition {
 		SubtitleDelay: subtitleDelay,
 		SubtitleFade:  subtitleFade,
 	}
+}
+
+func progressEndTime(duration float64) float64 {
+	if duration <= 0 {
+		return 0
+	}
+	vanishBeforeEnd := math.Min(0.5, duration*0.25)
+	return math.Max(0.1, duration-vanishBeforeEnd)
 }
 
 func outroTextFilters(cfg Config, theme themeConfig, titleStart float64, subtitleStart float64, outroReveal string, subtitleReveal string) []string {

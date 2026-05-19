@@ -153,3 +153,16 @@ func TestOutroTimingHandlesShortOutro(t *testing.T) {
 		t.Fatalf("subtitle starts after outro: title delay %v subtitle delay %v", timing.TitleDelay, timing.SubtitleDelay)
 	}
 }
+
+func TestProgressEndTimeVanishesBeforeEnd(t *testing.T) {
+	if got := progressEndTime(6); got != 5.5 {
+		t.Fatalf("progressEndTime(6) = %v, want 5.5", got)
+	}
+}
+
+func TestProgressEndTimeHandlesShortDuration(t *testing.T) {
+	got := progressEndTime(1)
+	if got <= 0 || got >= 1 {
+		t.Fatalf("progressEndTime(1) = %v, want inside duration", got)
+	}
+}

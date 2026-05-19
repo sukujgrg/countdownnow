@@ -1,0 +1,146 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Test
+        run: go test ./...
+
+  build:
+    name: Build ${{ matrix.goos }} ${{ matrix.goarch }}
+    needs: test
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            artifact: countdownnow-linux-amd64
+            binary: countdownnow
+            archive: tar.gz
+          - goos: linux
+            goarch: arm64
+            artifact: countdownnow-linux-arm64
+            binary: countdownnow
+            archive: tar.gz
+          - goos: darwin
+            goarch: amd64
+            artifact: countdownnow-darwin-amd64
+            binary: countdownnow
+            archive: tar.gz
+          - goos: darwin
+            goarch: arm64
+            artifact: countdownnow-darwin-arm64
+            binary: countdownnow
+            archive: tar.gz
+          - goos: windows
+            goarch: amd64
+            artifact: countdownnow-windows-amd64
+            binary: countdownnow.exe
+            archive: zip
+          - goos: windows
+            goarch: arm64
+            artifact: countdownnow-windows-arm64
+            binary: countdownnow.exe
+            archive: zip
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            version="${GITHUB_REF_NAME}"
+          else
+            version="$(git rev-parse --short HEAD)"
+          fi
+          echo "value=${version}" >> "${GITHUB_OUTPUT}"
+
+      - name: Build
+        env:
+          CGO_ENABLED: "0"
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          VERSION: ${{ steps.version.outputs.value }}
+          PROJECT_URL: https://github.com/${{ github.repository }}
+        run: |
+          mkdir -p dist/${{ matrix.artifact }}
+          go build \
+            -trimpath \
+            -buildvcs=false \
+            -ldflags="-s -w -X 'main.version=${VERSION}' -X 'main.projectURL=${PROJECT_URL}'" \
+            -o "dist/${{ matrix.artifact }}/${{ matrix.binary }}" \
+            .
+
+      - name: Add release files
+        run: |
+          cp README.md dist/${{ matrix.artifact }}/
+          cp fonts/Passion_One/OFL.txt dist/${{ matrix.artifact }}/FONT-LICENSE.txt
+
+      - name: Package tar.gz
+        if: matrix.archive == 'tar.gz'
+        run: |
+          tar -C dist -czf dist/${{ matrix.artifact }}.tar.gz ${{ matrix.artifact }}
+
+      - name: Package zip
+        if: matrix.archive == 'zip'
+        run: |
+          cd dist
+          zip -r ${{ matrix.artifact }}.zip ${{ matrix.artifact }}
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/${{ matrix.artifact }}.${{ matrix.archive }}
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref_type == 'tag'
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true

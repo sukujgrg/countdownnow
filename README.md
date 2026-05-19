@@ -23,12 +23,6 @@ Install FFmpeg:
 brew install ffmpeg-full
 ```
 
-Install Go if you want to run/build the Go CLI:
-
-```sh
-brew install go
-```
-
 Default assets are embedded into the Go binary at build time:
 
 ```text
@@ -64,6 +58,17 @@ Build metadata is injected at build time. If `HEAD` is on a git tag, that tag is
 ./countdownnow --version
 ./countdownnow --help
 ```
+
+## Releases
+
+GitHub Actions publishes release binaries when a tag starting with `v` is pushed:
+
+```sh
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The release workflow builds Linux, macOS, and Windows binaries for `amd64` and `arm64`, then attaches `.tar.gz` or `.zip` archives to the GitHub Release.
 
 Default output:
 
@@ -228,7 +233,7 @@ go run . --progress bottom-bar
 go run . --progress none
 ```
 
-`bottom-bar` is the default shrinking bar. Use `none` to hide the progress indicator.
+`bottom-bar` is the default shrinking bar. It runs through the countdown and finishes just before the end so the final moment is clean. Use `none` to hide the progress indicator.
 
 Add extra padding for screens that crop edges:
 
