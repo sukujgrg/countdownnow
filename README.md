@@ -2,6 +2,8 @@
 
 This project generates countdown videos with FFmpeg. The primary tool is the Go CLI in `main.go`, which builds the FFmpeg filter graph from presets and command-line flags.
 
+Watch the demo: [CountdownNow on YouTube](https://www.youtube.com/watch?v=nxPPpFHKHBw)
+
 The video includes:
 
 - Static radial gradient background, or a custom image/video background
