@@ -13,31 +13,25 @@ The video includes:
 - Responsive layout sizing for landscape, vertical, square, ultrawide, 4K, and custom dimensions
 - Themes, outro modes, progress styles, preview frames, and optional audio
 
-Generated media files are output artifacts. Do not inspect audio/video file contents unless explicitly needed.
-
 ## Requirements
 
-Install FFmpeg:
+Install a full FFmpeg build before running CountdownNow.
+
+macOS:
 
 ```sh
 brew install ffmpeg-full
 ```
 
-Default assets are embedded into the Go binary at build time:
+Windows and Linux users should install a full FFmpeg package from their package manager or from the official FFmpeg builds. After installing FFmpeg, verify the runtime with:
 
-```text
-logo.png
-fonts/Passion_One/PassionOne-Bold.ttf
-fonts/Passion_One/OFL.txt
+```sh
+./countdownnow --check
 ```
-
-The CLI still accepts external logo and font paths with `--logo` and `--font`.
-
-`fonts/Passion_One/OFL.txt` is included because the embedded default font is licensed under the SIL Open Font License.
 
 ## Quick Start
 
-Download the release archive for your platform from GitHub Releases, extract it, and run the binary.
+Download the release archive for your platform from the [latest GitHub Release](https://github.com/sukujgrg/countdownnow/releases/latest), extract it, and run the binary.
 
 Run the default 5-minute landscape countdown:
 
@@ -49,30 +43,6 @@ Run the default 5-minute landscape countdown:
 ./countdownnow --version
 ./countdownnow --help
 ```
-
-## Releases
-
-GitHub Actions publishes release binaries when a tag starting with `v` is pushed:
-
-```sh
-git tag v0.1.0
-git push origin v0.1.0
-```
-
-The release workflow builds Linux and Windows binaries for `amd64` and `arm64`. It also builds one universal macOS binary.
-
-macOS downloads are only normal-user friendly when signed and notarized. Configure these repository secrets to publish `countdownnow-macos-universal.zip` as a signed/notarized artifact:
-
-```text
-APPLE_DEVELOPER_ID_APPLICATION_CERTIFICATE_BASE64
-APPLE_DEVELOPER_ID_APPLICATION_CERTIFICATE_PASSWORD
-APPLE_NOTARY_KEY_ID
-APPLE_NOTARY_ISSUER_ID
-APPLE_NOTARY_KEY
-APPLE_TEAM_ID
-```
-
-Without those secrets, the workflow still publishes a macOS artifact, but its filename is marked `unsigned` or `signed-unnotarized` because Gatekeeper may block it.
 
 To run an unsigned or unnotarized macOS download, remove the quarantine attribute after extracting the archive:
 
