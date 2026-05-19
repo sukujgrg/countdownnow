@@ -44,16 +44,6 @@ jobs:
             artifact: countdownnow-linux-arm64
             binary: countdownnow
             archive: tar.gz
-          - goos: darwin
-            goarch: amd64
-            artifact: countdownnow-darwin-amd64
-            binary: countdownnow
-            archive: tar.gz
-          - goos: darwin
-            goarch: arm64
-            artifact: countdownnow-darwin-arm64
-            binary: countdownnow
-            archive: tar.gz
           - goos: windows
             goarch: amd64
             artifact: countdownnow-windows-amd64
@@ -127,9 +117,143 @@ jobs:
           path: dist/${{ matrix.artifact }}.${{ matrix.archive }}
           if-no-files-found: error
 
+  build-macos:
+    name: Build macOS universal
+    needs: test
+    runs-on: macos-latest
+    env:
+      CERTIFICATE_BASE64: ${{ secrets.APPLE_DEVELOPER_ID_APPLICATION_CERTIFICATE_BASE64 }}
+      CERTIFICATE_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_APPLICATION_CERTIFICATE_PASSWORD }}
+      NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+      NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
+      NOTARY_KEY: ${{ secrets.APPLE_NOTARY_KEY }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            version="${GITHUB_REF_NAME}"
+          else
+            version="$(git rev-parse --short HEAD)"
+          fi
+          echo "value=${version}" >> "${GITHUB_OUTPUT}"
+
+      - name: Build universal binary
+        env:
+          CGO_ENABLED: "0"
+          VERSION: ${{ steps.version.outputs.value }}
+          PROJECT_URL: https://github.com/${{ github.repository }}
+        run: |
+          mkdir -p dist/countdownnow-macos-universal build
+          GOOS=darwin GOARCH=amd64 go build \
+            -trimpath \
+            -buildvcs=false \
+            -ldflags="-s -w -X 'main.version=${VERSION}' -X 'main.projectURL=${PROJECT_URL}'" \
+            -o build/countdownnow-amd64 \
+            .
+          GOOS=darwin GOARCH=arm64 go build \
+            -trimpath \
+            -buildvcs=false \
+            -ldflags="-s -w -X 'main.version=${VERSION}' -X 'main.projectURL=${PROJECT_URL}'" \
+            -o build/countdownnow-arm64 \
+            .
+          lipo -create -output dist/countdownnow-macos-universal/countdownnow build/countdownnow-amd64 build/countdownnow-arm64
+
+      - name: Sign binary
+        id: sign
+        shell: bash
+        run: |
+          if [[ -z "${CERTIFICATE_BASE64}" || -z "${CERTIFICATE_PASSWORD}" ]]; then
+            echo "signed=false" >> "${GITHUB_OUTPUT}"
+            echo "Apple signing certificate secrets are not configured; producing an unsigned macOS artifact."
+            exit 0
+          fi
+
+          keychain="${RUNNER_TEMP}/countdownnow-signing.keychain-db"
+          certificate="${RUNNER_TEMP}/developer-id-application.p12"
+          echo "${CERTIFICATE_BASE64}" | base64 --decode > "${certificate}"
+
+          security create-keychain -p "" "${keychain}"
+          security set-keychain-settings -lut 21600 "${keychain}"
+          security unlock-keychain -p "" "${keychain}"
+          security import "${certificate}" -P "${CERTIFICATE_PASSWORD}" -A -t cert -f pkcs12 -k "${keychain}"
+          security list-keychains -d user -s "${keychain}"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "" "${keychain}"
+
+          identity="$(security find-identity -v -p codesigning "${keychain}" | awk -F '"' '/Developer ID Application/ { print $2; exit }')"
+          if [[ -z "${identity}" ]]; then
+            echo "Developer ID Application identity not found in signing certificate."
+            exit 1
+          fi
+
+          codesign --force --timestamp --options runtime --sign "${identity}" dist/countdownnow-macos-universal/countdownnow
+          codesign --verify --strict --verbose=2 dist/countdownnow-macos-universal/countdownnow
+          echo "signed=true" >> "${GITHUB_OUTPUT}"
+
+      - name: Add release files
+        run: |
+          cp README.md dist/countdownnow-macos-universal/
+          cp fonts/Passion_One/OFL.txt dist/countdownnow-macos-universal/FONT-LICENSE.txt
+
+      - name: Package macOS artifact
+        run: |
+          if [[ "${{ steps.sign.outputs.signed }}" == "true" && -n "${NOTARY_KEY_ID}" && -n "${NOTARY_ISSUER_ID}" && -n "${NOTARY_KEY}" && -n "${APPLE_TEAM_ID}" ]]; then
+            name="countdownnow-macos-universal"
+          elif [[ "${{ steps.sign.outputs.signed }}" == "true" ]]; then
+            name="countdownnow-macos-universal-signed-unnotarized"
+          else
+            name="countdownnow-macos-universal-unsigned"
+          fi
+          echo "artifact_name=${name}" >> "${GITHUB_ENV}"
+          mv dist/countdownnow-macos-universal "dist/${name}"
+          ditto -c -k --keepParent "dist/${name}" "dist/${name}.zip"
+
+      - name: Notarize macOS artifact
+        id: notarize
+        if: steps.sign.outputs.signed == 'true'
+        shell: bash
+        run: |
+          if [[ -z "${NOTARY_KEY_ID}" || -z "${NOTARY_ISSUER_ID}" || -z "${NOTARY_KEY}" || -z "${APPLE_TEAM_ID}" ]]; then
+            echo "notarized=false" >> "${GITHUB_OUTPUT}"
+            echo "Apple notarization secrets are not configured; signed artifact will not be notarized."
+            exit 0
+          fi
+
+          key_file="${RUNNER_TEMP}/AuthKey_${NOTARY_KEY_ID}.p8"
+          printf '%s' "${NOTARY_KEY}" > "${key_file}"
+          xcrun notarytool submit "dist/${artifact_name}.zip" \
+            --key "${key_file}" \
+            --key-id "${NOTARY_KEY_ID}" \
+            --issuer "${NOTARY_ISSUER_ID}" \
+            --team-id "${APPLE_TEAM_ID}" \
+            --wait
+          echo "notarized=true" >> "${GITHUB_OUTPUT}"
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.artifact_name }}
+          path: dist/${{ env.artifact_name }}.zip
+          if-no-files-found: error
+
   release:
     name: Publish GitHub Release
-    needs: build
+    needs:
+      - build
+      - build-macos
     runs-on: ubuntu-latest
     if: github.ref_type == 'tag'
     steps:

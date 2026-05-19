@@ -37,22 +37,13 @@ The CLI still accepts external logo and font paths with `--logo` and `--font`.
 
 ## Quick Start
 
+Download the release archive for your platform from GitHub Releases, extract it, and run the binary.
+
 Run the default 5-minute landscape countdown:
 
 ```sh
-go run .
-```
-
-Build a reusable binary:
-
-```sh
-make build
 ./countdownnow
 ```
-
-The Makefile builds with `-trimpath -buildvcs=false` and `-ldflags="-s -w"` so the binary omits local source paths, VCS metadata, and debug symbols.
-
-Build metadata is injected at build time. If `HEAD` is on a git tag, that tag is used as the version; otherwise the short commit SHA is used.
 
 ```sh
 ./countdownnow --version
@@ -68,7 +59,27 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-The release workflow builds Linux, macOS, and Windows binaries for `amd64` and `arm64`, then attaches `.tar.gz` or `.zip` archives to the GitHub Release.
+The release workflow builds Linux and Windows binaries for `amd64` and `arm64`. It also builds one universal macOS binary.
+
+macOS downloads are only normal-user friendly when signed and notarized. Configure these repository secrets to publish `countdownnow-macos-universal.zip` as a signed/notarized artifact:
+
+```text
+APPLE_DEVELOPER_ID_APPLICATION_CERTIFICATE_BASE64
+APPLE_DEVELOPER_ID_APPLICATION_CERTIFICATE_PASSWORD
+APPLE_NOTARY_KEY_ID
+APPLE_NOTARY_ISSUER_ID
+APPLE_NOTARY_KEY
+APPLE_TEAM_ID
+```
+
+Without those secrets, the workflow still publishes a macOS artifact, but its filename is marked `unsigned` or `signed-unnotarized` because Gatekeeper may block it.
+
+To run an unsigned or unnotarized macOS download, remove the quarantine attribute after extracting the archive:
+
+```sh
+xattr -dr com.apple.quarantine ./countdownnow-macos-universal-unsigned
+./countdownnow-macos-universal-unsigned/countdownnow --help
+```
 
 Default output:
 
@@ -81,19 +92,18 @@ countdown_300s.mp4
 Use short renders while tuning layout:
 
 ```sh
-go run . --duration 0.5 --output /tmp/countdown-test.mp4 --encoder software
+./countdownnow --duration 0.5 --output /tmp/countdown-test.mp4 --encoder software
 ```
 
 Print the generated FFmpeg command without rendering:
 
 ```sh
-go run . --duration 0.5 --dry-run
+./countdownnow --duration 0.5 --dry-run
 ```
 
 Check the runtime FFmpeg installation before rendering:
 
 ```sh
-go run . --check
 ./countdownnow --check
 ```
 
@@ -102,16 +112,16 @@ The check verifies the FFmpeg executable, required video/audio filters, `libx264
 Generate one preview frame without rendering a video:
 
 ```sh
-go run . --preview preview.png --preview-time 120
+./countdownnow --preview preview.png --preview-time 120
 ```
 
 Use a custom image or video background:
 
 ```sh
-go run . --background background.png
-go run . --background background.mp4
-go run . --background background.mp4 --width 1920 --height 1080 --background-fit cover
-go run . --background poster.png --width 1080 --height 1920 --background-fit contain
+./countdownnow --background background.png
+./countdownnow --background background.mp4
+./countdownnow --background background.mp4 --width 1920 --height 1080 --background-fit cover
+./countdownnow --background poster.png --width 1080 --height 1920 --background-fit contain
 ```
 
 When `--background` is provided without `--width` and `--height`, the output video uses the background's first video stream dimensions. If you provide dimensions, pass both `--width` and `--height`; those values override the background size.
@@ -129,40 +139,40 @@ Background fit modes:
 Landscape, 1280x720:
 
 ```sh
-go run . --preset landscape
+./countdownnow --preset landscape
 ```
 
 Vertical, 1080x1920:
 
 ```sh
-go run . --preset vertical --output vertical-countdown.mp4
+./countdownnow --preset vertical --output vertical-countdown.mp4
 ```
 
 Square, 1080x1080:
 
 ```sh
-go run . --preset square --output square-countdown.mp4
+./countdownnow --preset square --output square-countdown.mp4
 ```
 
 Ultrawide, 2560x1080:
 
 ```sh
-go run . --preset ultrawide --output ultrawide-countdown.mp4
+./countdownnow --preset ultrawide --output ultrawide-countdown.mp4
 ```
 
 4K landscape, 3840x2160:
 
 ```sh
-go run . --preset 4k --output countdown-4k.mp4
+./countdownnow --preset 4k --output countdown-4k.mp4
 ```
 
 You can also override dimensions directly. The timer, logo, progress bar, title, subtitle, margins, and bitrate scale from the selected canvas size:
 
 ```sh
-go run . --width 1920 --height 1080 --output custom.mp4
-go run . --width 1080 --height 1350 --output social-4x5.mp4
-go run . --width 2160 --height 3840 --output vertical-4k.mp4
-go run . --width 3440 --height 1440 --output wide-monitor.mp4
+./countdownnow --width 1920 --height 1080 --output custom.mp4
+./countdownnow --width 1080 --height 1350 --output social-4x5.mp4
+./countdownnow --width 2160 --height 3840 --output vertical-4k.mp4
+./countdownnow --width 3440 --height 1440 --output wide-monitor.mp4
 ```
 
 ## Text Options
@@ -170,38 +180,38 @@ go run . --width 3440 --height 1440 --output wide-monitor.mp4
 Set duration:
 
 ```sh
-go run . --duration 600
+./countdownnow --duration 600
 ```
 
 Set title:
 
 ```sh
-go run . --title "Sunday Gathering"
+./countdownnow --title "Sunday Gathering"
 ```
 
 Set outro subtitle:
 
 ```sh
-go run . --subtitle "We are glad you are here."
+./countdownnow --subtitle "We are glad you are here."
 ```
 
 Use a custom font for all text:
 
 ```sh
-go run . --font ./fonts/Passion_One/PassionOne-Bold.ttf
+./countdownnow --font ./fonts/Passion_One/PassionOne-Bold.ttf
 ```
 
 Advanced font overrides:
 
 ```sh
-go run . --font-title ./title.ttf --font-subtitle ./subtitle.ttf
-go run . --font-timer ./timer.ttf
+./countdownnow --font-title ./title.ttf --font-subtitle ./subtitle.ttf
+./countdownnow --font-timer ./timer.ttf
 ```
 
 Disable the final title and subtitle:
 
 ```sh
-go run . --title none --subtitle none
+./countdownnow --title none --subtitle none
 ```
 
 The timer and logo still fade out during the outro.
@@ -211,26 +221,26 @@ The timer and logo still fade out during the outro.
 Set a color theme:
 
 ```sh
-go run . --theme midnight
-go run . --theme warm
-go run . --theme sunrise
-go run . --theme minimal
+./countdownnow --theme midnight
+./countdownnow --theme warm
+./countdownnow --theme sunrise
+./countdownnow --theme minimal
 ```
 
 Set the outro reveal style:
 
 ```sh
-go run . --outro slide
-go run . --outro fade
-go run . --outro typewriter
-go run . --outro none
+./countdownnow --outro slide
+./countdownnow --outro fade
+./countdownnow --outro typewriter
+./countdownnow --outro none
 ```
 
 Set the progress indicator:
 
 ```sh
-go run . --progress bottom-bar
-go run . --progress none
+./countdownnow --progress bottom-bar
+./countdownnow --progress none
 ```
 
 `bottom-bar` is the default shrinking bar. It runs through the countdown and finishes just before the end so the final moment is clean. Use `none` to hide the progress indicator.
@@ -238,7 +248,7 @@ go run . --progress none
 Add extra padding for screens that crop edges:
 
 ```sh
-go run . --safe-area 80
+./countdownnow --safe-area 80
 ```
 
 ## Logo Options
@@ -256,30 +266,30 @@ If no local logo file is available, the Go binary uses its embedded `logo.png`.
 Use a specific logo:
 
 ```sh
-go run . --logo logo.png
+./countdownnow --logo logo.png
 ```
 
 Disable the logo:
 
 ```sh
-go run . --logo none
-go run . --logo-position none
+./countdownnow --logo none
+./countdownnow --logo-position none
 ```
 
 Set logo position:
 
 ```sh
-go run . --logo-position top-right
-go run . --logo-position top-left
-go run . --logo-position bottom-right
-go run . --logo-position bottom-left
-go run . --logo-position center
+./countdownnow --logo-position top-right
+./countdownnow --logo-position top-left
+./countdownnow --logo-position bottom-right
+./countdownnow --logo-position bottom-left
+./countdownnow --logo-position center
 ```
 
 Resize or adjust margins:
 
 ```sh
-go run . --logo-width 160 --logo-margin-x 30 --logo-margin-y 40
+./countdownnow --logo-width 160 --logo-margin-x 30 --logo-margin-y 40
 ```
 
 The app warns when `ffprobe` reports a low-resolution logo or a logo pixel format that may not include transparency.
@@ -289,19 +299,19 @@ The app warns when `ffprobe` reports a low-resolution logo or a logo pixel forma
 Add background audio:
 
 ```sh
-go run . --audio worship-pad.mp3 --audio-volume 0.35
+./countdownnow --audio worship-pad.mp3 --audio-volume 0.35
 ```
 
 Fade background audio during the outro:
 
 ```sh
-go run . --audio worship-pad.mp3 --fade-audio
+./countdownnow --audio worship-pad.mp3 --fade-audio
 ```
 
 Mix in a short sound effect near the end:
 
 ```sh
-go run . --end-sound chime.wav
+./countdownnow --end-sound chime.wav
 ```
 
 ## Encoder Options
@@ -309,7 +319,7 @@ go run . --end-sound chime.wav
 Default mode is `auto`:
 
 ```sh
-go run . --encoder auto
+./countdownnow --encoder auto
 ```
 
 Auto mode tries hardware encoders first for the current OS, then falls back to software:
@@ -321,23 +331,36 @@ Auto mode tries hardware encoders first for the current OS, then falls back to s
 Force software:
 
 ```sh
-go run . --encoder software
+./countdownnow --encoder software
 ```
 
 Use a specific FFmpeg encoder:
 
 ```sh
-go run . --encoder h264_nvenc
+./countdownnow --encoder h264_nvenc
 ```
 
 Set hardware bitrate:
 
 ```sh
-go run . --bitrate 8M
+./countdownnow --bitrate 8M
 ```
 
 Set software quality:
 
 ```sh
-go run . --encoder software --crf 20 --preset-x264 veryfast
+./countdownnow --encoder software --crf 20 --preset-x264 veryfast
 ```
+
+## Developer Build
+
+Build from source:
+
+```sh
+make build
+./countdownnow
+```
+
+The Makefile builds with `-trimpath -buildvcs=false` and `-ldflags="-s -w"` so the binary omits local source paths, VCS metadata, and debug symbols.
+
+Build metadata is injected at build time. If `HEAD` is on a git tag, that tag is used as the version; otherwise the short commit SHA is used.
