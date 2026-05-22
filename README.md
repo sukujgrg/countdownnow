@@ -155,6 +155,13 @@ Set duration:
 ./countdownnow --duration 600
 ```
 
+By default, `--outro-seconds` is part of the duration. To add the outro after
+the countdown, keep the timer duration unchanged and extend the final video:
+
+```sh
+./countdownnow --duration 10 --outro-seconds 6 --outro-over-duration
+```
+
 Set title:
 
 ```sh
@@ -197,6 +204,13 @@ Set a color theme:
 ./countdownnow --theme warm
 ./countdownnow --theme sunrise
 ./countdownnow --theme minimal
+```
+
+Override the timer font color:
+
+```sh
+./countdownnow --timer-color "#ffcc00"
+./countdownnow --timer-color white
 ```
 
 Set the outro reveal style:

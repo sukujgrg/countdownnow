@@ -55,7 +55,9 @@ type Config struct {
 	FontTimer         string
 	FontTitle         string
 	FontSubtitle      string
+	TimerColor        string
 	OutroSeconds      float64
+	OutroOverDuration bool
 	Theme             string
 	OutroMode         string
 	ProgressStyle     string
@@ -181,7 +183,9 @@ func parseFlags(cfg *Config) {
 	flag.StringVar(&cfg.FontTimer, "font-timer", cfg.FontTimer, "font file for countdown timer")
 	flag.StringVar(&cfg.FontTitle, "font-title", cfg.FontTitle, "font file for outro title")
 	flag.StringVar(&cfg.FontSubtitle, "font-subtitle", cfg.FontSubtitle, "font file for outro subtitle")
+	flag.StringVar(&cfg.TimerColor, "timer-color", cfg.TimerColor, "timer font color override, e.g. #ffcc00 or white")
 	flag.Float64Var(&cfg.OutroSeconds, "outro-seconds", cfg.OutroSeconds, "final title reveal duration in seconds")
+	flag.BoolVar(&cfg.OutroOverDuration, "outro-over-duration", cfg.OutroOverDuration, "add outro seconds after the countdown instead of taking them from duration")
 	flag.StringVar(&cfg.Theme, "theme", cfg.Theme, "visual theme: midnight, warm, sunrise, minimal")
 	flag.StringVar(&cfg.OutroMode, "outro", cfg.OutroMode, "outro mode: slide, fade, typewriter, none")
 	flag.StringVar(&cfg.ProgressStyle, "progress", cfg.ProgressStyle, "progress style: bottom-bar, none")
@@ -463,6 +467,9 @@ func validate(cfg Config) error {
 	if cfg.PreviewTime < 0 {
 		return errors.New("preview time must be zero or greater")
 	}
+	if cfg.TimerColor != "" && !validFFmpegColor(cfg.TimerColor) {
+		return fmt.Errorf("invalid timer color %q", cfg.TimerColor)
+	}
 	if cfg.OutroSeconds <= 0 {
 		return errors.New("outro seconds must be greater than zero")
 	}
@@ -561,6 +568,48 @@ func validateOutputPath(label string, path string) error {
 
 func validFontPath(path string) bool {
 	return fileExists(path) || path == defaultFontPath || path == embeddedFont
+}
+
+func validFFmpegColor(color string) bool {
+	if color == "" {
+		return false
+	}
+	parts := strings.Split(color, "@")
+	if len(parts) > 2 || parts[0] == "" {
+		return false
+	}
+	base := parts[0]
+	if strings.HasPrefix(base, "#") {
+		hex := base[1:]
+		if len(hex) != 6 && len(hex) != 8 {
+			return false
+		}
+		for _, r := range hex {
+			if !isHexDigit(r) {
+				return false
+			}
+		}
+	} else {
+		for i, r := range base {
+			if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '_') {
+				return false
+			}
+			if i == 0 && r >= '0' && r <= '9' {
+				return false
+			}
+		}
+	}
+	if len(parts) == 2 {
+		alpha, err := strconv.ParseFloat(parts[1], 64)
+		if err != nil || alpha < 0 || alpha > 1 {
+			return false
+		}
+	}
+	return true
+}
+
+func isHexDigit(r rune) bool {
+	return r >= '0' && r <= '9' || r >= 'a' && r <= 'f' || r >= 'A' && r <= 'F'
 }
 
 func prepareEmbeddedAssets(cfg Config) (Config, func(), error) {
@@ -897,7 +946,8 @@ func softwareEncoder(cfg Config) Encoder {
 }
 
 func buildFFmpegArgs(cfg Config, encoderArgs []string, tmpOutput string) []string {
-	args, inputs := buildInputs(cfg, cfg.Duration)
+	renderDuration := outputDuration(cfg)
+	args, inputs := buildInputs(cfg, renderDuration)
 	filterGraph := buildFilterGraph(cfg, inputs.Logo)
 	if inputs.Audio >= 0 || inputs.EndSound >= 0 {
 		filterGraph += ";" + buildAudioGraph(cfg, inputs.Audio, inputs.EndSound)
@@ -906,18 +956,18 @@ func buildFFmpegArgs(cfg Config, encoderArgs []string, tmpOutput string) []strin
 	args = append(args, "-filter_complex", filterGraph)
 	args = append(args, "-map", "[vout]")
 	if inputs.Audio >= 0 || inputs.EndSound >= 0 {
-		args = append(args, "-map", "[aout]", "-shortest")
+		args = append(args, "-map", "[aout]")
 	}
 	args = append(args, encoderArgs...)
 	if inputs.Audio >= 0 || inputs.EndSound >= 0 {
 		args = append(args, "-c:a", "aac", "-b:a", "192k")
 	}
-	args = append(args, "-r", strconv.Itoa(cfg.FPS), "-t", ff(cfg.Duration), "-fps_mode", "cfr", tmpOutput)
+	args = append(args, "-r", strconv.Itoa(cfg.FPS), "-t", ff(renderDuration), "-fps_mode", "cfr", tmpOutput)
 	return args
 }
 
 func buildPreviewArgs(cfg Config) []string {
-	previewTime := clampFloat(cfg.PreviewTime, 0, cfg.Duration)
+	previewTime := clampFloat(cfg.PreviewTime, 0, outputDuration(cfg))
 	args, inputs := buildInputs(cfg, previewTime+1)
 	args = append(args,
 		"-filter_complex", buildFilterGraph(cfg, inputs.Logo),
@@ -928,6 +978,20 @@ func buildPreviewArgs(cfg Config) []string {
 		cfg.Preview,
 	)
 	return args
+}
+
+func outputDuration(cfg Config) float64 {
+	if cfg.OutroOverDuration {
+		return cfg.Duration + cfg.OutroSeconds
+	}
+	return cfg.Duration
+}
+
+func outroStartTime(cfg Config) float64 {
+	if cfg.OutroOverDuration {
+		return cfg.Duration
+	}
+	return math.Max(0, cfg.Duration-cfg.OutroSeconds)
 }
 
 type inputIndexes struct {
@@ -976,7 +1040,10 @@ func buildInputs(cfg Config, duration float64) ([]string, inputIndexes) {
 
 func buildFilterGraph(cfg Config, logoIndex int) string {
 	theme := themeByName(cfg.Theme)
-	outroStart := math.Max(0, cfg.Duration-cfg.OutroSeconds)
+	if cfg.TimerColor != "" {
+		theme.TimerColor = cfg.TimerColor
+	}
+	outroStart := outroStartTime(cfg)
 	transition := outroTiming(cfg.OutroSeconds)
 	controlsFadeEnd := outroStart + transition.ControlsFade
 	titleStart := outroStart + transition.TitleDelay
@@ -985,7 +1052,12 @@ func buildFilterGraph(cfg Config, logoIndex int) string {
 	outroReveal := fmt.Sprintf("min(max((t-%s)/%s,0),1)", ff(titleStart), ff(transition.TitleFade))
 	subtitleReveal := fmt.Sprintf("min(max((t-%s)/%s,0),1)", ff(subtitleStart), ff(transition.SubtitleFade))
 
-	timerText := fmt.Sprintf("%%{eif\\:floor((%s-t)/60)\\:d\\:2}\\:%%{eif\\:mod(floor(%s-t),60)\\:d\\:2}", ff(cfg.Duration), ff(cfg.Duration))
+	timerRemaining := fmt.Sprintf("max(%s-t,0)", ff(cfg.Duration))
+	timerText := fmt.Sprintf("%%{eif\\:floor(%s/60)\\:d\\:2}\\:%%{eif\\:mod(floor(%s),60)\\:d\\:2}", timerRemaining, timerRemaining)
+	timerEnd := cfg.Duration
+	if cfg.OutroOverDuration {
+		timerEnd = controlsFadeEnd
+	}
 
 	baseFilters := []string{
 		fmt.Sprintf("fps=%d", cfg.FPS),
@@ -996,7 +1068,7 @@ func buildFilterGraph(cfg Config, logoIndex int) string {
 		"vignette=PI/5",
 		fmt.Sprintf("drawbox=x=0:y=0:w=%d:h=%d:color=%s:t=fill", cfg.Width, headerHeight(cfg), theme.HeaderColor),
 		fmt.Sprintf("drawtext=fontfile=%s:text='%s':fontsize=%d:x=(w-tw)/2:y=(h-th)/2%+d:fontcolor=%s:borderw=%d:bordercolor=%s:shadowx=%d:shadowy=%d:alpha='if(lt(t,%s)\\,1\\,%s)':enable='lt(t,%s)'",
-			escPath(cfg.FontTimer), timerText, cfg.TimerFontSize, cfg.TimerYOffset, theme.TimerColor, scaleInt(cfg.TimerFontSize, 0.08), theme.BorderColor, scaleInt(cfg.TimerFontSize, 0.05), scaleInt(cfg.TimerFontSize, 0.05), ff(outroStart), outroFade, ff(cfg.Duration)),
+			escPath(cfg.FontTimer), timerText, cfg.TimerFontSize, cfg.TimerYOffset, theme.TimerColor, scaleInt(cfg.TimerFontSize, 0.08), theme.BorderColor, scaleInt(cfg.TimerFontSize, 0.05), scaleInt(cfg.TimerFontSize, 0.05), ff(outroStart), outroFade, ff(timerEnd)),
 	}
 	if strings.ToLower(cfg.OutroMode) != "none" {
 		baseFilters = append(baseFilters, outroTextFilters(cfg, theme, titleStart, subtitleStart, outroReveal, subtitleReveal)...)
@@ -1124,15 +1196,16 @@ type outroTransition struct {
 }
 
 func outroTiming(outroSeconds float64) outroTransition {
-	controlsFade := clampFloat(outroSeconds*0.25, 0.2, 0.75)
-	controlsFade = math.Min(controlsFade, outroSeconds*0.45)
-	beat := clampFloat(outroSeconds*0.05, 0.08, 0.18)
-	beat = math.Min(beat, math.Max(0, outroSeconds*0.6-controlsFade))
-	titleDelay := controlsFade + beat
-	titleFade := math.Max(0.2, outroSeconds-titleDelay)
-	subtitleDelay := math.Min(0.45, titleFade*0.32)
-	subtitleDelay = math.Min(subtitleDelay, math.Max(0, (outroSeconds-titleDelay)*0.5))
-	subtitleFade := math.Max(0.2, outroSeconds-titleDelay-subtitleDelay)
+	controlsFade := clampFloat(outroSeconds*0.18, 0.18, 0.75)
+	controlsFade = math.Min(controlsFade, outroSeconds*0.35)
+	beat := clampFloat(outroSeconds*0.04, 0.05, 0.2)
+	beat = math.Min(beat, math.Max(0, outroSeconds*0.55-controlsFade))
+	titleDelay := math.Min(controlsFade+beat, outroSeconds*0.6)
+
+	remaining := math.Max(0.01, outroSeconds-titleDelay)
+	titleFade := fitOutroStage(clampFloat(outroSeconds*0.22, 0.25, 1.4), remaining)
+	subtitleDelay := fitOutroStage(clampFloat(outroSeconds*0.08, 0.08, 0.45), remaining*0.45)
+	subtitleFade := fitOutroStage(clampFloat(outroSeconds*0.18, 0.2, 1.2), math.Max(0.01, remaining-subtitleDelay))
 	return outroTransition{
 		ControlsFade:  controlsFade,
 		TitleDelay:    titleDelay,
@@ -1140,6 +1213,10 @@ func outroTiming(outroSeconds float64) outroTransition {
 		SubtitleDelay: subtitleDelay,
 		SubtitleFade:  subtitleFade,
 	}
+}
+
+func fitOutroStage(preferred float64, available float64) float64 {
+	return math.Max(0.01, math.Min(preferred, available))
 }
 
 func progressEndTime(duration float64) float64 {
@@ -1187,12 +1264,12 @@ func buildAudioGraph(cfg Config, audioIndex int, endSoundIndex int) string {
 	var labels []string
 	if audioIndex >= 0 {
 		filters := []string{
-			fmt.Sprintf("[%d:a]atrim=0:%s", audioIndex, ff(cfg.Duration)),
+			fmt.Sprintf("[%d:a]atrim=0:%s", audioIndex, ff(outputDuration(cfg))),
 			"asetpts=PTS-STARTPTS",
 			fmt.Sprintf("volume=%s", ff(cfg.AudioVolume)),
 		}
 		if cfg.FadeAudio {
-			filters = append(filters, fmt.Sprintf("afade=t=out:st=%s:d=%s", ff(math.Max(0, cfg.Duration-cfg.OutroSeconds)), ff(cfg.OutroSeconds)))
+			filters = append(filters, fmt.Sprintf("afade=t=out:st=%s:d=%s", ff(outroStartTime(cfg)), ff(cfg.OutroSeconds)))
 		}
 		chains = append(chains, strings.Join(filters, ",")+"[audio_bg]")
 		labels = append(labels, "[audio_bg]")
