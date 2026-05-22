@@ -101,6 +101,10 @@ type Encoder struct {
 func main() {
 	cfg := defaultConfig()
 	parseFlags(&cfg)
+	if err := validatePositionalArgs(flag.Args()); err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+		os.Exit(2)
+	}
 	if cfg.ShowVersion {
 		printVersion()
 		return
@@ -222,6 +226,24 @@ func parseFlags(cfg *Config) {
 			cfg.UserFontSubtitle = true
 		}
 	})
+}
+
+func validatePositionalArgs(args []string) error {
+	if len(args) == 0 {
+		return nil
+	}
+	if len(args) > 1 && isNumericArg(args[0]) && strings.HasPrefix(args[1], "-") {
+		return fmt.Errorf("unexpected argument %q; did you mean --outro-seconds %s?", args[0], args[0])
+	}
+	return fmt.Errorf("unexpected argument %q; countdownnow only accepts flags", args[0])
+}
+
+func isNumericArg(arg string) bool {
+	if arg == "" {
+		return false
+	}
+	_, err := strconv.ParseFloat(arg, 64)
+	return err == nil
 }
 
 func printUsage() {

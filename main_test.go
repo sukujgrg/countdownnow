@@ -152,6 +152,26 @@ func TestValidateRejectsInvalidTimerColorOverride(t *testing.T) {
 	}
 }
 
+func TestValidatePositionalArgsRejectsUnexpectedArgument(t *testing.T) {
+	err := validatePositionalArgs([]string{"extra"})
+	if err == nil {
+		t.Fatal("validatePositionalArgs returned nil error for unexpected argument")
+	}
+	if !strings.Contains(err.Error(), "countdownnow only accepts flags") {
+		t.Fatalf("error = %q, want flags-only message", err)
+	}
+}
+
+func TestValidatePositionalArgsHintsOutroSeconds(t *testing.T) {
+	err := validatePositionalArgs([]string{"23", "--theme", "minimal"})
+	if err == nil {
+		t.Fatal("validatePositionalArgs returned nil error for unexpected argument")
+	}
+	if !strings.Contains(err.Error(), "did you mean --outro-seconds 23") {
+		t.Fatalf("error = %q, want outro-seconds hint", err)
+	}
+}
+
 func TestOutroTimingStagesTitleAfterControlsStartFading(t *testing.T) {
 	timing := outroTiming(3)
 	if timing.ControlsFade <= 0 {
