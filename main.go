@@ -512,9 +512,6 @@ func validate(cfg Config) error {
 			return err
 		}
 	}
-	if _, err := exec.LookPath("ffmpeg"); err != nil {
-		return errors.New("ffmpeg not found in PATH")
-	}
 	if cfg.UserFont && !validFontPath(cfg.Font) {
 		return fmt.Errorf("font not found: %s", cfg.Font)
 	}
@@ -704,6 +701,12 @@ func prepareEmbeddedAssets(cfg Config) (Config, func(), error) {
 }
 
 func render(cfg Config) error {
+	if !cfg.DryRun {
+		if _, err := exec.LookPath("ffmpeg"); err != nil {
+			return errors.New("ffmpeg not found in PATH")
+		}
+	}
+
 	resolved, cleanup, err := prepareEmbeddedAssets(cfg)
 	if err != nil {
 		return err
