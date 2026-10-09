@@ -1,0 +1,193 @@
+{
+  "slides": [
+    {
+      "type": "scripture-reveal",
+      "text": "Be still, and know that I am God: I will be exalted among the heathen, I will be exalted in the earth.",
+      "reference": "Psalm 46:10",
+      "translation": "KJV",
+      "anchor_words": ["still", "God", "earth"],
+      "reveal_order": "random",
+      "seed": 10,
+      "reveal_style": "gentle-lift",
+      "fade_seconds": 1.6,
+      "intro_seconds": 3,
+      "reveal_seconds": 10,
+      "hold_seconds": 7.4
+    },
+    {
+      "type": "statement",
+      "label": "PREPARE FOR WORSHIP",
+      "text": "Take a quiet moment to pray.\nOur service begins shortly.",
+      "duration_seconds": 9
+    },
+    {
+      "type": "scripture-reveal",
+      "text": "The LORD is my shepherd; I shall not want.",
+      "reference": "Psalm 23:1",
+      "translation": "KJV",
+      "anchor_words": ["LORD", "shepherd"],
+      "reveal_order": "normal",
+      "reveal_style": "soft-dissolve",
+      "fade_seconds": 1.6,
+      "intro_seconds": 3,
+      "reveal_seconds": 10,
+      "hold_seconds": 7.4
+    },
+    {
+      "type": "statement",
+      "label": "PREPARE FOR WORSHIP",
+      "text": "Take a moment to pray\nas we prepare for worship.",
+      "duration_seconds": 9
+    },
+    {
+      "type": "scripture-reveal",
+      "text": "O come, let us worship and bow down: let us kneel before the LORD our maker.",
+      "reference": "Psalm 95:6",
+      "translation": "KJV",
+      "anchor_words": ["worship", "LORD", "maker"],
+      "reveal_order": "random",
+      "seed": 30,
+      "reveal_style": "gentle-lift",
+      "fade_seconds": 1.6,
+      "intro_seconds": 3,
+      "reveal_seconds": 10,
+      "hold_seconds": 7.4
+    },
+    {
+      "type": "statement",
+      "label": "WELCOME",
+      "text": "We are glad you are here.\nOur service begins shortly.",
+      "duration_seconds": 9
+    },
+    {
+      "type": "scripture-reveal",
+      "text": "Serve the LORD with gladness: come before his presence with singing.",
+      "reference": "Psalm 100:2",
+      "translation": "KJV",
+      "anchor_words": ["gladness", "singing"],
+      "reveal_order": "normal",
+      "reveal_style": "gentle-lift",
+      "fade_seconds": 1.6,
+      "intro_seconds": 3,
+      "reveal_seconds": 10,
+      "hold_seconds": 7.4
+    },
+    {
+      "type": "statement",
+      "label": "PREPARE FOR WORSHIP",
+      "text": "Let us prepare our hearts\nfor worship.",
+      "duration_seconds": 9
+    },
+    {
+      "type": "scripture-reveal",
+      "text": "This is the day which the LORD hath made; we will rejoice and be glad in it.",
+      "reference": "Psalm 118:24",
+      "translation": "KJV",
+      "anchor_words": ["LORD", "rejoice", "glad"],
+      "reveal_order": "random",
+      "seed": 50,
+      "reveal_style": "soft-dissolve",
+      "fade_seconds": 1.6,
+      "intro_seconds": 3,
+      "reveal_seconds": 10,
+      "hold_seconds": 7.4
+    },
+    {
+      "type": "statement",
+      "label": "A MOMENT OF REFLECTION",
+      "text": "Take a quiet breath.\nBring your cares to God.",
+      "duration_seconds": 9
+    },
+    {
+      "type": "scripture-reveal",
+      "text": "Come unto me, all ye that labour and are heavy laden, and I will give you rest.",
+      "reference": "Matthew 11:28",
+      "translation": "KJV",
+      "anchor_words": ["Come", "rest"],
+      "reveal_order": "normal",
+      "reveal_style": "soft-dissolve",
+      "fade_seconds": 1.6,
+      "intro_seconds": 3,
+      "reveal_seconds": 10,
+      "hold_seconds": 7.4
+    },
+    {
+      "type": "statement",
+      "label": "THANKSGIVING",
+      "text": "Pause and give thanks\nfor God's goodness.",
+      "duration_seconds": 9
+    },
+    {
+      "type": "scripture-reveal",
+      "text": "Peace I leave with you, my peace I give unto you: not as the world giveth, give I unto you. Let not your heart be troubled, neither let it be afraid.",
+      "reference": "John 14:27",
+      "translation": "KJV",
+      "anchor_words": ["Peace", "heart"],
+      "reveal_order": "random",
+      "seed": 70,
+      "reveal_style": "gentle-lift",
+      "fade_seconds": 1.6,
+      "intro_seconds": 3,
+      "reveal_seconds": 10,
+      "hold_seconds": 7.4
+    },
+    {
+      "type": "statement",
+      "label": "PRAY TOGETHER",
+      "text": "Pray for those worshipping\nalongside you today.",
+      "duration_seconds": 9
+    },
+    {
+      "type": "scripture-reveal",
+      "text": "But they that wait upon the LORD shall renew their strength; they shall mount up with wings as eagles; they shall run, and not be weary; and they shall walk, and not faint.",
+      "reference": "Isaiah 40:31",
+      "translation": "KJV",
+      "anchor_words": ["LORD", "strength", "eagles"],
+      "reveal_order": "normal",
+      "reveal_style": "gentle-lift",
+      "fade_seconds": 1.6,
+      "intro_seconds": 3,
+      "reveal_seconds": 10,
+      "hold_seconds": 7.4
+    },
+    {
+      "type": "statement",
+      "label": "BE STILL",
+      "text": "Make room for a quiet moment\nbefore our service begins.",
+      "duration_seconds": 9
+    },
+    {
+      "type": "scripture-reveal",
+      "text": "Be careful for nothing; but in every thing by prayer and supplication with thanksgiving let your requests be made known unto God.",
+      "reference": "Philippians 4:6",
+      "translation": "KJV",
+      "anchor_words": ["prayer", "thanksgiving", "God"],
+      "reveal_order": "random",
+      "seed": 90,
+      "reveal_style": "soft-dissolve",
+      "fade_seconds": 1.6,
+      "intro_seconds": 3,
+      "reveal_seconds": 10,
+      "hold_seconds": 7.4
+    },
+    {
+      "type": "statement",
+      "label": "WELCOME",
+      "text": "We are glad you are here.\nLet us worship together.",
+      "duration_seconds": 9
+    },
+    {
+      "type": "scripture-reveal",
+      "text": "Now the God of hope fill you with all joy and peace in believing, that ye may abound in hope, through the power of the Holy Ghost.",
+      "reference": "Romans 15:13",
+      "translation": "KJV",
+      "anchor_words": ["hope", "joy", "peace"],
+      "reveal_order": "normal",
+      "reveal_style": "gentle-lift",
+      "fade_seconds": 1.6,
+      "intro_seconds": 3,
+      "reveal_seconds": 10,
+      "hold_seconds": 7.4
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "slides": [
+    {
+      "type": "scripture-reveal",
+      "text": "The LORD is my shepherd; I shall not want.",
+      "reference": "Psalm 23:1",
+      "translation": "KJV",
+      "anchor_words": ["LORD", "shepherd"],
+      "reveal_order": "normal",
+      "reveal_style": "gentle-lift",
+      "intro_seconds": 2,
+      "reveal_seconds": 5,
+      "hold_seconds": 2.5
+    },
+    {
+      "type": "scripture-reveal",
+      "text": "The LORD is my shepherd; I shall not want.",
+      "reference": "Psalm 23:1",
+      "translation": "KJV",
+      "anchor_words": ["LORD", "shepherd"],
+      "reveal_order": "random",
+      "seed": 10,
+      "reveal_style": "gentle-lift",
+      "intro_seconds": 2,
+      "reveal_seconds": 5,
+      "hold_seconds": 2.5
+    }
+  ]
+}

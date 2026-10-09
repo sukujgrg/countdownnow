@@ -23,7 +23,22 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: remotion/package-lock.json
+
+      - name: Install renderer
+        run: npm --prefix remotion ci
+
+      - name: Test renderer
+        run: npm --prefix remotion test
+
       - name: Test
+        env:
+          COUNTDOWN_REMOTION_TEST: "1"
         run: go test ./...
 
   build:
@@ -97,7 +112,14 @@ jobs:
       - name: Add release files
         run: |
           cp README.md dist/${{ matrix.artifact }}/
+          cp THIRD-PARTY-NOTICES.txt dist/${{ matrix.artifact }}/
           cp fonts/Passion_One/OFL.txt dist/${{ matrix.artifact }}/FONT-LICENSE.txt
+          cp fonts/Source_Serif/LICENSE.md dist/${{ matrix.artifact }}/SOURCE-SERIF-LICENSE.txt
+          cp fonts/Source_Sans/LICENSE.md dist/${{ matrix.artifact }}/SOURCE-SANS-LICENSE.txt
+          cp -R examples dist/${{ matrix.artifact }}/
+          mkdir -p dist/${{ matrix.artifact }}/remotion
+          cp remotion/package.json remotion/package-lock.json remotion/*.mjs dist/${{ matrix.artifact }}/remotion/
+          cp -R remotion/src remotion/test dist/${{ matrix.artifact }}/remotion/
 
       - name: Package tar.gz
         if: matrix.archive == 'tar.gz'
@@ -206,7 +228,14 @@ jobs:
       - name: Add release files
         run: |
           cp README.md dist/countdownnow-macos-universal/
+          cp THIRD-PARTY-NOTICES.txt dist/countdownnow-macos-universal/
           cp fonts/Passion_One/OFL.txt dist/countdownnow-macos-universal/FONT-LICENSE.txt
+          cp fonts/Source_Serif/LICENSE.md dist/countdownnow-macos-universal/SOURCE-SERIF-LICENSE.txt
+          cp fonts/Source_Sans/LICENSE.md dist/countdownnow-macos-universal/SOURCE-SANS-LICENSE.txt
+          cp -R examples dist/countdownnow-macos-universal/
+          mkdir -p dist/countdownnow-macos-universal/remotion
+          cp remotion/package.json remotion/package-lock.json remotion/*.mjs dist/countdownnow-macos-universal/remotion/
+          cp -R remotion/src remotion/test dist/countdownnow-macos-universal/remotion/
 
       - name: Package macOS artifact
         run: |

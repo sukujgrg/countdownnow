@@ -8,13 +8,26 @@
 !AGENTS.md
 !README.md
 !Makefile
+!THIRD-PARTY-NOTICES.txt
 
 !go.mod
 !go.sum
 !*.go
 !**/*.go
+!examples/*.json
 
 # Required by go:embed in main.go.
 !logo.png
 !fonts/Passion_One/PassionOne-Bold.ttf
 !fonts/Passion_One/OFL.txt
+!fonts/Source_Serif/SourceSerif4-Regular.ttf
+!fonts/Source_Serif/LICENSE.md
+!fonts/Source_Sans/SourceSans3-Regular.ttf
+!fonts/Source_Sans/LICENSE.md
+!remotion/package.json
+!remotion/package-lock.json
+!remotion/*.mjs
+!remotion/src/*.jsx
+!remotion/src/*.mjs
+!remotion/test/*.mjs
+**/node_modules/

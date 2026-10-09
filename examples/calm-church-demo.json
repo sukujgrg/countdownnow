@@ -1,0 +1,35 @@
+{
+  "slides": [
+    {
+      "type": "scripture-reveal",
+      "text": "Be still, and know that I am God: I will be exalted among the heathen, I will be exalted in the earth.",
+      "reference": "Psalm 46:10",
+      "translation": "KJV",
+      "anchor_words": ["Be", "still", "God", "earth"],
+      "reveal_order": "random",
+      "seed": 10,
+      "reveal_style": "gentle-lift",
+      "intro_seconds": 1.5,
+      "reveal_seconds": 8,
+      "hold_seconds": 5
+    },
+    {
+      "type": "statement",
+      "label": "PREPARE FOR WORSHIP",
+      "text": "Take a quiet moment to pray.\nOur service begins shortly.",
+      "duration_seconds": 5
+    },
+    {
+      "type": "scripture-reveal",
+      "text": "The LORD is my shepherd; I shall not want.",
+      "reference": "Psalm 23:1",
+      "translation": "KJV",
+      "anchor_words": ["LORD", "shepherd"],
+      "reveal_order": "normal",
+      "reveal_style": "soft-dissolve",
+      "intro_seconds": 1,
+      "reveal_seconds": 4,
+      "hold_seconds": 4
+    }
+  ]
+}

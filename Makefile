@@ -7,13 +7,19 @@ VERSION ?= $(shell git describe --tags --exact-match HEAD 2>/dev/null || git rev
 GOFLAGS := -trimpath -buildvcs=false
 LDFLAGS := -s -w -X 'main.version=$(VERSION)' -X 'main.projectURL=$(PROJECT_URL)'
 
-.PHONY: build test clean
+.PHONY: build test remotion-setup remotion-test clean
 
 build:
 	GOCACHE="$(GOCACHE)" "$(GO)" build $(GOFLAGS) -ldflags="$(LDFLAGS)" -o "$(BINARY)" .
 
 test:
 	GOCACHE="$(GOCACHE)" "$(GO)" test ./...
+
+remotion-setup:
+	npm --prefix remotion ci
+
+remotion-test:
+	npm --prefix remotion test
 
 clean:
 	rm -f "$(BINARY)"

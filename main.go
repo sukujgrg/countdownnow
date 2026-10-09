@@ -15,9 +15,11 @@ import (
 )
 
 const (
-	defaultFontPath = "./fonts/Passion_One/PassionOne-Bold.ttf"
-	embeddedLogo    = "embedded:logo.png"
-	embeddedFont    = "embedded:PassionOne-Bold.ttf"
+	defaultFontPath     = "./fonts/Passion_One/PassionOne-Bold.ttf"
+	embeddedLogo        = "embedded:logo.png"
+	embeddedFont        = "embedded:PassionOne-Bold.ttf"
+	embeddedContentFont = "embedded:SourceSerif4-Regular.ttf"
+	embeddedSansFont    = "embedded:SourceSans3-Regular.ttf"
 )
 
 var (
@@ -34,54 +36,76 @@ var embeddedPassionOneBold []byte
 //go:embed fonts/Passion_One/OFL.txt
 var embeddedPassionOneLicense []byte
 
+//go:embed fonts/Source_Serif/SourceSerif4-Regular.ttf
+var embeddedSourceSerif []byte
+
+//go:embed fonts/Source_Sans/SourceSans3-Regular.ttf
+var embeddedSourceSans []byte
+
 type Config struct {
-	Duration          float64
-	Output            string
-	Preset            string
-	Background        string
-	BackgroundIsImage bool
-	BackgroundFit     string
-	Width             int
-	Height            int
-	FPS               int
-	Title             string
-	Subtitle          string
-	LogoFile          string
-	LogoPosition      string
-	LogoWidth         int
-	LogoMarginX       int
-	LogoMarginY       int
-	Font              string
-	FontTimer         string
-	FontTitle         string
-	FontSubtitle      string
-	TimerColor        string
-	OutroSeconds      float64
-	OutroOverDuration bool
-	Theme             string
-	OutroMode         string
-	ProgressStyle     string
-	SafeArea          int
-	Preview           string
-	PreviewTime       float64
-	AudioFile         string
-	AudioVolume       float64
-	FadeAudio         bool
-	EndSoundFile      string
-	EncoderMode       string
-	VideoBitrate      string
-	SoftwareCRF       int
-	SoftwareSpeed     string
-	DryRun            bool
-	Check             bool
-	ShowVersion       bool
-	UserWidth         bool
-	UserHeight        bool
-	UserLogo          bool
-	UserFont          bool
-	UserFontTimer     bool
-	UserFontTitle     bool
-	UserFontSubtitle  bool
+	Renderer            string
+	RemotionDir         string
+	RemotionBrowser     string
+	RemotionConcurrency int
+	BackgroundMotion    string
+	SlideTransition     string
+	TransitionSeconds   float64
+	Duration            float64
+	Output              string
+	Preset              string
+	Background          string
+	BackgroundIsImage   bool
+	BackgroundFit       string
+	Width               int
+	Height              int
+	FPS                 int
+	Title               string
+	Subtitle            string
+	LogoFile            string
+	LogoPosition        string
+	LogoOutro           string
+	LogoShadow          string
+	LogoWidth           int
+	LogoMarginX         int
+	LogoMarginY         int
+	Font                string
+	FontTimer           string
+	FontTitle           string
+	FontSubtitle        string
+	FontContent         string
+	ContentFile         string
+	Content             []ContentSlide
+	ContentFilters      []string
+	FilterGraphFile     string
+	FilterGraphOption   string
+	TimerColor          string
+	OutroSeconds        float64
+	OutroOverDuration   bool
+	Theme               string
+	OutroMode           string
+	ProgressStyle       string
+	SafeArea            int
+	Preview             string
+	PreviewTime         float64
+	AudioFile           string
+	AudioVolume         float64
+	FadeAudio           bool
+	EndSoundFile        string
+	EncoderMode         string
+	VideoBitrate        string
+	SoftwareCRF         int
+	SoftwareSpeed       string
+	DryRun              bool
+	Check               bool
+	ShowVersion         bool
+	UserWidth           bool
+	UserHeight          bool
+	UserLogo            bool
+	UserFont            bool
+	UserFontTimer       bool
+	UserFontTitle       bool
+	UserFontSubtitle    bool
+	UserFontContent     bool
 
 	BarX              int
 	BarY              int
@@ -121,6 +145,14 @@ func main() {
 	}
 	applyResponsiveLayout(&cfg)
 	applyDefaults(&cfg)
+	if cfg.ContentFile != "" {
+		var err error
+		cfg.Content, err = loadContentFile(cfg.ContentFile)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "error:", err)
+			os.Exit(2)
+		}
+	}
 
 	if err := validate(cfg); err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
@@ -128,7 +160,13 @@ func main() {
 	}
 
 	if cfg.Check {
-		if err := checkFFmpeg(cfg); err != nil {
+		var err error
+		if useRemotion(cfg) {
+			err = runRemotion(cfg, "check")
+		} else {
+			err = checkFFmpeg(cfg)
+		}
+		if err != nil {
 			fmt.Fprintln(os.Stderr, "error:", err)
 			os.Exit(1)
 		}
@@ -143,31 +181,46 @@ func main() {
 
 func defaultConfig() Config {
 	return Config{
-		Duration:      300,
-		Preset:        "landscape",
-		Title:         "Welcome",
-		Subtitle:      "We are glad you are here.",
-		LogoPosition:  "top-right",
-		Font:          embeddedFont,
-		FontTimer:     embeddedFont,
-		FontTitle:     embeddedFont,
-		FontSubtitle:  embeddedFont,
-		OutroSeconds:  3,
-		Theme:         "midnight",
-		OutroMode:     "slide",
-		ProgressStyle: "bottom-bar",
-		BackgroundFit: "cover",
-		AudioVolume:   0.35,
-		EncoderMode:   "auto",
-		VideoBitrate:  "2M",
-		SoftwareCRF:   20,
-		SoftwareSpeed: "veryfast",
-		FPS:           30,
+		Renderer:            "remotion",
+		RemotionConcurrency: 2,
+		BackgroundMotion:    "subtle",
+		SlideTransition:     "crossfade",
+		TransitionSeconds:   1.2,
+		Duration:            300,
+		Preset:              "landscape",
+		Title:               "Welcome",
+		Subtitle:            "We are glad you are here.",
+		LogoPosition:        "top-right",
+		LogoOutro:           "center",
+		LogoShadow:          "subtle",
+		Font:                embeddedSansFont,
+		FontTimer:           embeddedSansFont,
+		FontTitle:           embeddedContentFont,
+		FontSubtitle:        embeddedSansFont,
+		FontContent:         embeddedContentFont,
+		OutroSeconds:        3,
+		Theme:               "midnight",
+		OutroMode:           "slide",
+		ProgressStyle:       "bottom-bar",
+		BackgroundFit:       "cover",
+		AudioVolume:         0.35,
+		EncoderMode:         "auto",
+		VideoBitrate:        "2M",
+		SoftwareCRF:         20,
+		SoftwareSpeed:       "veryfast",
+		FPS:                 30,
 	}
 }
 
 func parseFlags(cfg *Config) {
 	flag.Usage = printUsage
+	flag.StringVar(&cfg.Renderer, "renderer", cfg.Renderer, "visual renderer: remotion or ffmpeg (legacy)")
+	flag.StringVar(&cfg.RemotionDir, "remotion-dir", cfg.RemotionDir, "optional path to the Remotion renderer folder")
+	flag.StringVar(&cfg.RemotionBrowser, "remotion-browser", cfg.RemotionBrowser, "optional Chrome executable; otherwise Remotion downloads Chrome Headless Shell")
+	flag.IntVar(&cfg.RemotionConcurrency, "remotion-concurrency", cfg.RemotionConcurrency, "number of frames rendered concurrently")
+	flag.StringVar(&cfg.BackgroundMotion, "background-motion", cfg.BackgroundMotion, "generated Remotion background: subtle or none")
+	flag.StringVar(&cfg.SlideTransition, "slide-transition", cfg.SlideTransition, "Remotion slide transition: crossfade, fade or none")
+	flag.Float64Var(&cfg.TransitionSeconds, "transition-seconds", cfg.TransitionSeconds, "Remotion crossfade duration; shortened for brief slides to preserve reading holds")
 	flag.Float64Var(&cfg.Duration, "duration", cfg.Duration, "countdown duration in seconds")
 	flag.StringVar(&cfg.Output, "output", cfg.Output, "output mp4 path")
 	flag.StringVar(&cfg.Preset, "preset", cfg.Preset, "layout preset: landscape, vertical, square, ultrawide, 4k")
@@ -180,6 +233,8 @@ func parseFlags(cfg *Config) {
 	flag.StringVar(&cfg.Subtitle, "subtitle", cfg.Subtitle, "outro subtitle text; use none to disable")
 	flag.StringVar(&cfg.LogoFile, "logo", cfg.LogoFile, "logo PNG path; use none to disable")
 	flag.StringVar(&cfg.LogoPosition, "logo-position", cfg.LogoPosition, "logo position: top-right, top-left, bottom-right, bottom-left, center, none")
+	flag.StringVar(&cfg.LogoOutro, "logo-outro", cfg.LogoOutro, "Remotion closing logo: center above the greeting, or fade with the corner logo")
+	flag.StringVar(&cfg.LogoShadow, "logo-shadow", cfg.LogoShadow, "Remotion logo shadow: subtle or none")
 	flag.IntVar(&cfg.LogoWidth, "logo-width", cfg.LogoWidth, "logo width in pixels")
 	flag.IntVar(&cfg.LogoMarginX, "logo-margin-x", cfg.LogoMarginX, "logo horizontal margin in pixels")
 	flag.IntVar(&cfg.LogoMarginY, "logo-margin-y", cfg.LogoMarginY, "logo vertical margin in pixels")
@@ -187,6 +242,8 @@ func parseFlags(cfg *Config) {
 	flag.StringVar(&cfg.FontTimer, "font-timer", cfg.FontTimer, "font file for countdown timer")
 	flag.StringVar(&cfg.FontTitle, "font-title", cfg.FontTitle, "font file for outro title")
 	flag.StringVar(&cfg.FontSubtitle, "font-subtitle", cfg.FontSubtitle, "font file for outro subtitle")
+	flag.StringVar(&cfg.FontContent, "font-content", cfg.FontContent, "font file for scripture and statement text")
+	flag.StringVar(&cfg.ContentFile, "content", cfg.ContentFile, "JSON playlist of scripture reveal and statement slides")
 	flag.StringVar(&cfg.TimerColor, "timer-color", cfg.TimerColor, "timer font color override, e.g. #ffcc00 or white")
 	flag.Float64Var(&cfg.OutroSeconds, "outro-seconds", cfg.OutroSeconds, "final title reveal duration in seconds")
 	flag.BoolVar(&cfg.OutroOverDuration, "outro-over-duration", cfg.OutroOverDuration, "add outro seconds after the countdown instead of taking them from duration")
@@ -204,8 +261,8 @@ func parseFlags(cfg *Config) {
 	flag.StringVar(&cfg.VideoBitrate, "bitrate", cfg.VideoBitrate, "hardware encoder target bitrate")
 	flag.IntVar(&cfg.SoftwareCRF, "crf", cfg.SoftwareCRF, "libx264 CRF")
 	flag.StringVar(&cfg.SoftwareSpeed, "preset-x264", cfg.SoftwareSpeed, "libx264 preset")
-	flag.BoolVar(&cfg.DryRun, "dry-run", cfg.DryRun, "print ffmpeg command instead of running it")
-	flag.BoolVar(&cfg.Check, "check", cfg.Check, "check FFmpeg capabilities and exit without rendering")
+	flag.BoolVar(&cfg.DryRun, "dry-run", cfg.DryRun, "print the render plan instead of rendering")
+	flag.BoolVar(&cfg.Check, "check", cfg.Check, "check the selected renderer and exit without rendering a video")
 	flag.BoolVar(&cfg.ShowVersion, "version", cfg.ShowVersion, "print version information and exit")
 	flag.Parse()
 	flag.Visit(func(f *flag.Flag) {
@@ -224,6 +281,8 @@ func parseFlags(cfg *Config) {
 			cfg.UserFontTitle = true
 		case "font-subtitle":
 			cfg.UserFontSubtitle = true
+		case "font-content":
+			cfg.UserFontContent = true
 		}
 	})
 }
@@ -247,7 +306,7 @@ func isNumericArg(arg string) bool {
 }
 
 func printUsage() {
-	fmt.Fprintf(flag.CommandLine.Output(), "CountdownNow generates customizable countdown videos with FFmpeg.\n\n")
+	fmt.Fprintf(flag.CommandLine.Output(), "CountdownNow generates customizable countdown videos with Remotion.\n\n")
 	fmt.Fprintf(flag.CommandLine.Output(), "URL: %s\n", projectURL)
 	fmt.Fprintf(flag.CommandLine.Output(), "Version: %s\n\n", version)
 	fmt.Fprintf(flag.CommandLine.Output(), "Usage:\n")
@@ -338,9 +397,16 @@ func applyResponsiveLayout(cfg *Config) {
 	setIfZero(&cfg.BarHeight, maxInt(2, roundInt(float64(shortSide)*0.014)))
 	setIfZero(&cfg.BarX, (cfg.Width-cfg.BarWidth)/2)
 	setIfZero(&cfg.BarY, clampInt(roundInt(float64(cfg.Height)*barYRatio), 0, maxInt(0, cfg.Height-cfg.BarHeight)))
+	logoMarginX := maxInt(8, roundInt(float64(cfg.Width)*marginXRatio))
+	logoMarginY := maxInt(8, roundInt(float64(cfg.Height)*marginYRatio))
+	if useRemotion(*cfg) {
+		logoScale *= 0.78
+		logoMarginX = maxInt(8, roundInt(float64(shortSide)*0.075))
+		logoMarginY = logoMarginX
+	}
 	setIfZero(&cfg.LogoWidth, maxInt(24, roundInt(float64(shortSide)*logoScale)))
-	setIfZero(&cfg.LogoMarginX, maxInt(8, roundInt(float64(cfg.Width)*marginXRatio)))
-	setIfZero(&cfg.LogoMarginY, maxInt(8, roundInt(float64(cfg.Height)*marginYRatio)))
+	setIfZero(&cfg.LogoMarginX, logoMarginX)
+	setIfZero(&cfg.LogoMarginY, logoMarginY)
 	setIfZero(&cfg.TimerFontSize, maxInt(24, roundInt(float64(shortSide)*timerScale)))
 	setIfZero(&cfg.OutroTitleSize, maxInt(18, roundInt(float64(shortSide)*titleScale)))
 	setIfZero(&cfg.OutroSubtitleSize, maxInt(14, roundInt(float64(shortSide)*subtitleScale)))
@@ -403,6 +469,9 @@ func applyFontFlags(cfg *Config) {
 	}
 	if !cfg.UserFontSubtitle {
 		cfg.FontSubtitle = cfg.Font
+	}
+	if !cfg.UserFontContent {
+		cfg.FontContent = cfg.Font
 	}
 }
 
@@ -474,7 +543,22 @@ func setIfZero(target *int, value int) {
 }
 
 func validate(cfg Config) error {
-	if cfg.Duration <= 0 {
+	if cfg.BackgroundMotion != "subtle" && cfg.BackgroundMotion != "none" && cfg.BackgroundMotion != "" {
+		return fmt.Errorf("background motion must be subtle or none")
+	}
+	if cfg.SlideTransition != "crossfade" && cfg.SlideTransition != "fade" && cfg.SlideTransition != "none" && cfg.SlideTransition != "" {
+		return fmt.Errorf("slide transition must be crossfade, fade or none")
+	}
+	if math.IsNaN(cfg.TransitionSeconds) || math.IsInf(cfg.TransitionSeconds, 0) || cfg.TransitionSeconds < 0 {
+		return fmt.Errorf("transition seconds must be finite and zero or greater")
+	}
+	if cfg.Renderer != "" && cfg.Renderer != "remotion" && cfg.Renderer != "ffmpeg" {
+		return fmt.Errorf("unknown renderer %q; use remotion or ffmpeg", cfg.Renderer)
+	}
+	if useRemotion(cfg) && cfg.RemotionConcurrency < 1 {
+		return errors.New("remotion concurrency must be greater than zero")
+	}
+	if !finitePositive(cfg.Duration) {
 		return errors.New("duration must be greater than zero")
 	}
 	if cfg.Width <= 0 || cfg.Height <= 0 {
@@ -483,16 +567,16 @@ func validate(cfg Config) error {
 	if cfg.FPS <= 0 {
 		return errors.New("fps must be greater than zero")
 	}
-	if cfg.AudioVolume < 0 {
+	if math.IsNaN(cfg.AudioVolume) || math.IsInf(cfg.AudioVolume, 0) || cfg.AudioVolume < 0 {
 		return errors.New("audio volume must be zero or greater")
 	}
-	if cfg.PreviewTime < 0 {
+	if math.IsNaN(cfg.PreviewTime) || math.IsInf(cfg.PreviewTime, 0) || cfg.PreviewTime < 0 {
 		return errors.New("preview time must be zero or greater")
 	}
 	if cfg.TimerColor != "" && !validFFmpegColor(cfg.TimerColor) {
 		return fmt.Errorf("invalid timer color %q", cfg.TimerColor)
 	}
-	if cfg.OutroSeconds <= 0 {
+	if !finitePositive(cfg.OutroSeconds) {
 		return errors.New("outro seconds must be greater than zero")
 	}
 	if cfg.SoftwareCRF < 0 || cfg.SoftwareCRF > 51 {
@@ -523,6 +607,12 @@ func validate(cfg Config) error {
 	}
 	if !validFontPath(cfg.FontSubtitle) {
 		return fmt.Errorf("subtitle font not found: %s", cfg.FontSubtitle)
+	}
+	if !validFontPath(cfg.FontContent) {
+		return fmt.Errorf("content font not found: %s", cfg.FontContent)
+	}
+	if _, err := scheduleContent(cfg); err != nil {
+		return err
 	}
 	if strings.ToLower(cfg.LogoPosition) != "none" && cfg.LogoFile != "" && cfg.LogoFile != embeddedLogo && !fileExists(cfg.LogoFile) {
 		return fmt.Errorf("logo not found: %s", cfg.LogoFile)
@@ -556,6 +646,16 @@ func validate(cfg Config) error {
 	default:
 		return fmt.Errorf("unknown logo position %q", cfg.LogoPosition)
 	}
+	switch strings.ToLower(cfg.LogoOutro) {
+	case "center", "fade", "":
+	default:
+		return fmt.Errorf("unknown logo outro %q", cfg.LogoOutro)
+	}
+	switch strings.ToLower(cfg.LogoShadow) {
+	case "subtle", "none", "":
+	default:
+		return fmt.Errorf("unknown logo shadow %q", cfg.LogoShadow)
+	}
 	switch strings.ToLower(cfg.BackgroundFit) {
 	case "cover", "contain", "stretch":
 	default:
@@ -586,7 +686,7 @@ func validateOutputPath(label string, path string) error {
 }
 
 func validFontPath(path string) bool {
-	return fileExists(path) || path == defaultFontPath || path == embeddedFont
+	return fileExists(path) || path == defaultFontPath || path == embeddedFont || path == embeddedContentFont || path == embeddedSansFont
 }
 
 func validFFmpegColor(color string) bool {
@@ -620,7 +720,7 @@ func validFFmpegColor(color string) bool {
 	}
 	if len(parts) == 2 {
 		alpha, err := strconv.ParseFloat(parts[1], 64)
-		if err != nil || alpha < 0 || alpha > 1 {
+		if err != nil || math.IsNaN(alpha) || math.IsInf(alpha, 0) || alpha < 0 || alpha > 1 {
 			return false
 		}
 	}
@@ -655,7 +755,29 @@ func prepareEmbeddedAssets(cfg Config) (Config, func(), error) {
 	}
 
 	var embeddedFontPath string
+	var embeddedBodyPath string
+	var embeddedSansPath string
 	resolveFont := func(path string) (string, error) {
+		if path == embeddedSansFont {
+			if embeddedSansPath == "" {
+				var err error
+				embeddedSansPath, err = writeAsset("SourceSans3-Regular.ttf", embeddedSourceSans)
+				if err != nil {
+					return "", err
+				}
+			}
+			return embeddedSansPath, nil
+		}
+		if path == embeddedContentFont {
+			if embeddedBodyPath == "" {
+				var err error
+				embeddedBodyPath, err = writeAsset("SourceSerif4-Regular.ttf", embeddedSourceSerif)
+				if err != nil {
+					return "", err
+				}
+			}
+			return embeddedBodyPath, nil
+		}
 		if fileExists(path) && path != embeddedFont {
 			return path, nil
 		}
@@ -689,6 +811,11 @@ func prepareEmbeddedAssets(cfg Config) (Config, func(), error) {
 		cleanup()
 		return cfg, func() {}, err
 	}
+	cfg.FontContent, err = resolveFont(cfg.FontContent)
+	if err != nil {
+		cleanup()
+		return cfg, func() {}, err
+	}
 	if cfg.LogoFile == embeddedLogo {
 		cfg.LogoFile, err = writeAsset("logo.png", embeddedLogoPNG)
 		if err != nil {
@@ -701,6 +828,9 @@ func prepareEmbeddedAssets(cfg Config) (Config, func(), error) {
 }
 
 func render(cfg Config) error {
+	if useRemotion(cfg) {
+		return runRemotion(cfg, "render")
+	}
 	if !cfg.DryRun {
 		if _, err := exec.LookPath("ffmpeg"); err != nil {
 			return errors.New("ffmpeg not found in PATH")
@@ -714,6 +844,11 @@ func render(cfg Config) error {
 	defer cleanup()
 	cfg = resolved
 	warnLogoIfNeeded(cfg)
+	cfg, contentCleanup, err := prepareContent(cfg)
+	if err != nil {
+		return err
+	}
+	defer contentCleanup()
 
 	if cfg.Preview != "" {
 		args := buildPreviewArgs(cfg)
@@ -775,6 +910,11 @@ func checkFFmpeg(cfg Config) error {
 	defer cleanup()
 	cfg = resolved
 	warnLogoIfNeeded(cfg)
+	cfg, contentCleanup, err := prepareContent(cfg)
+	if err != nil {
+		return err
+	}
+	defer contentCleanup()
 
 	ffmpegPath, err := exec.LookPath("ffmpeg")
 	if err != nil {
@@ -800,6 +940,7 @@ func checkFFmpeg(cfg Config) error {
 		"eq",
 		"fade",
 		"format",
+		"fps",
 		"gradients",
 		"overlay",
 		"pad",
@@ -833,6 +974,9 @@ func checkFFmpeg(cfg Config) error {
 		return fmt.Errorf("tiny drawtext render failed: %w", err)
 	}
 	fmt.Println("Tiny drawtext render: ok")
+	if len(cfg.Content) > 0 {
+		fmt.Printf("Content layout: ok (%d slides)\n", len(cfg.Content))
+	}
 	fmt.Println("FFmpeg preflight: ok")
 	return nil
 }
@@ -978,7 +1122,7 @@ func buildFFmpegArgs(cfg Config, encoderArgs []string, tmpOutput string) []strin
 		filterGraph += ";" + buildAudioGraph(cfg, inputs.Audio, inputs.EndSound)
 	}
 
-	args = append(args, "-filter_complex", filterGraph)
+	args = appendFilterGraphArgs(args, cfg, filterGraph)
 	args = append(args, "-map", "[vout]")
 	if inputs.Audio >= 0 || inputs.EndSound >= 0 {
 		args = append(args, "-map", "[aout]")
@@ -994,8 +1138,8 @@ func buildFFmpegArgs(cfg Config, encoderArgs []string, tmpOutput string) []strin
 func buildPreviewArgs(cfg Config) []string {
 	previewTime := clampFloat(cfg.PreviewTime, 0, outputDuration(cfg))
 	args, inputs := buildInputs(cfg, previewTime+1)
+	args = appendFilterGraphArgs(args, cfg, buildFilterGraph(cfg, inputs.Logo))
 	args = append(args,
-		"-filter_complex", buildFilterGraph(cfg, inputs.Logo),
 		"-map", "[vout]",
 		"-ss", ff(previewTime),
 		"-frames:v", "1",
@@ -1084,6 +1228,11 @@ func buildFilterGraph(cfg Config, logoIndex int) string {
 		timerEnd = controlsFadeEnd
 	}
 
+	timerFilter := fmt.Sprintf("drawtext=fontfile=%s:text='%s':fontsize=%d:x=(w-tw)/2:y=(h-th)/2%+d:fontcolor=%s:borderw=%d:bordercolor=%s:shadowx=%d:shadowy=%d:alpha='if(lt(t,%s)\\,1\\,%s)':enable='lt(t,%s)'",
+		escPath(cfg.FontTimer), timerText, cfg.TimerFontSize, cfg.TimerYOffset, theme.TimerColor, scaleInt(cfg.TimerFontSize, 0.08), theme.BorderColor, scaleInt(cfg.TimerFontSize, 0.05), scaleInt(cfg.TimerFontSize, 0.05), ff(outroStart), outroFade, ff(timerEnd))
+	if len(cfg.Content) > 0 {
+		timerFilter = contentTimerFilter(cfg, theme, timerText, timerEnd, outroFade)
+	}
 	baseFilters := []string{
 		fmt.Sprintf("fps=%d", cfg.FPS),
 		backgroundScaleFilter(cfg),
@@ -1092,9 +1241,9 @@ func buildFilterGraph(cfg Config, logoIndex int) string {
 		fmt.Sprintf("eq=brightness=%s:saturation=%s:contrast=%s", theme.Brightness, theme.Saturation, theme.Contrast),
 		"vignette=PI/5",
 		fmt.Sprintf("drawbox=x=0:y=0:w=%d:h=%d:color=%s:t=fill", cfg.Width, headerHeight(cfg), theme.HeaderColor),
-		fmt.Sprintf("drawtext=fontfile=%s:text='%s':fontsize=%d:x=(w-tw)/2:y=(h-th)/2%+d:fontcolor=%s:borderw=%d:bordercolor=%s:shadowx=%d:shadowy=%d:alpha='if(lt(t,%s)\\,1\\,%s)':enable='lt(t,%s)'",
-			escPath(cfg.FontTimer), timerText, cfg.TimerFontSize, cfg.TimerYOffset, theme.TimerColor, scaleInt(cfg.TimerFontSize, 0.08), theme.BorderColor, scaleInt(cfg.TimerFontSize, 0.05), scaleInt(cfg.TimerFontSize, 0.05), ff(outroStart), outroFade, ff(timerEnd)),
+		timerFilter,
 	}
+	baseFilters = append(baseFilters, cfg.ContentFilters...)
 	if strings.ToLower(cfg.OutroMode) != "none" {
 		baseFilters = append(baseFilters, outroTextFilters(cfg, theme, titleStart, subtitleStart, outroReveal, subtitleReveal)...)
 	}
