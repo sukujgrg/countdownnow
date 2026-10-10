@@ -261,7 +261,6 @@ func revealTimes(item scheduledContent) ([]float64, float64, error) {
 	words := strings.Fields(item.Slide.Text)
 	times := make([]float64, len(words))
 	order := contentRevealOrder(item.Slide, anchors)
-	remaining := len(order)
 	fade := item.Slide.FadeSeconds
 	if fade == 0 {
 		fade = 1.2
@@ -272,10 +271,30 @@ func revealTimes(item scheduledContent) ([]float64, float64, error) {
 			times[i] = item.Start
 		}
 	}
+	// Pace the gaps by word length, with room to breathe at punctuation in
+	// reading order. Normalize the whole sequence to preserve the reveal end
+	// and the complete-verse hold, even when fades overlap on a short slide.
+	positions := make([]float64, len(order))
+	for ordinal := 1; ordinal < len(order); ordinal++ {
+		word := words[order[ordinal-1]]
+		gap := 0.7 + 0.07*float64(minInt(len([]rune(normalizeAnchor(word))), 12))
+		if item.Slide.RevealOrder == "normal" {
+			tail := strings.TrimRight(word, "\"'’”)]}")
+			switch {
+			case strings.HasSuffix(tail, ","):
+				gap += 0.65
+			case strings.HasSuffix(tail, ";"), strings.HasSuffix(tail, ":"):
+				gap += 0.85
+			case strings.HasSuffix(tail, "."), strings.HasSuffix(tail, "!"), strings.HasSuffix(tail, "?"):
+				gap += 1.1
+			}
+		}
+		positions[ordinal] = positions[ordinal-1] + gap
+	}
 	for ordinal, i := range order {
-		portion := 1.0
-		if remaining > 1 {
-			portion = float64(ordinal) / float64(remaining-1)
+		portion := 0.0
+		if len(order) > 1 {
+			portion = positions[ordinal] / positions[len(order)-1]
 		}
 		times[i] = item.Start + item.Slide.IntroSeconds + portion*(item.Slide.RevealSeconds-fade)
 	}

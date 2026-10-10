@@ -132,6 +132,64 @@ func TestRemotionPlanPreservesLayoutAndExistingOptions(t *testing.T) {
 	}
 }
 
+func TestChurchFiveMinutePlaylistRevealsOnlyScriptureInReadingOrder(t *testing.T) {
+	slides, err := loadContentFile("examples/church-5min.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(slides) != 10 {
+		t.Fatal("five-minute example must keep all ten scriptures")
+	}
+	cfg := contentConfig(t)
+	cfg.Duration, cfg.Content = 300, slides
+	items, err := scheduleContent(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, err := buildRemotionPlan(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var total float64
+	for i, item := range items {
+		if item.Slide.Type != "scripture-reveal" {
+			t.Fatal("five-minute example still interrupts scriptures with statement slides")
+		}
+		if item.Slide.RevealOrder != "normal" || item.Slide.Seed != nil {
+			t.Fatalf("slide %d still uses random reveals", i+1)
+		}
+		if item.Slide.AnchorWords == nil || len(item.Slide.AnchorWords) != 0 || item.Slide.IntroSeconds > 1 {
+			t.Fatalf("slide %d still opens with preset words or a long empty pause", i+1)
+		}
+		total += item.Slide.IntroSeconds + item.Slide.RevealSeconds + item.Slide.HoldSeconds + contentFadeSeconds
+		full := item.Start + item.Slide.IntroSeconds + item.Slide.RevealSeconds
+		first := math.Inf(1)
+		previous := math.Inf(-1)
+		for _, word := range plan.Slides[i].Words {
+			if word.Kind != "content" {
+				continue
+			}
+			first = math.Min(first, word.Appear)
+			if word.Initial || word.Appear < item.Start+item.Slide.IntroSeconds || word.Appear+word.Fade > full+1e-7 {
+				t.Fatalf("slide %d contains an opening word or a reveal during the reading hold", i+1)
+			}
+			if word.Appear <= previous {
+				t.Fatalf("slide %d does not fill in word by word in reading order", i+1)
+			}
+			previous = word.Appear
+		}
+		if first != item.Start+item.Slide.IntroSeconds {
+			t.Fatal("verse did not start filling in after its brief intro")
+		}
+		if plan.Slides[i].End-plan.Slides[i].ExitSeconds < full+item.Slide.HoldSeconds-1e-7 {
+			t.Fatal("slide transition shortened the reading hold")
+		}
+	}
+	if math.Abs(total-contentEndTime(cfg)) > 1e-7 || plan.Frames != 300*cfg.FPS {
+		t.Fatal("playlist changed the five-minute countdown duration")
+	}
+}
+
 func TestRemotionCrossfadesPreserveReadingHoldsAndRevealTiming(t *testing.T) {
 	cfg := contentConfig(t)
 	cfg.Duration = 75
@@ -260,6 +318,7 @@ func TestRemotionScriptureFrames(t *testing.T) {
 	cfg.ProgressStyle, cfg.OutroMode = "none", "none"
 	cfg.Duration = 4
 	cfg.Content[0].Text = "Every 100% word: [stays] 'literal' \\ complete."
+	cfg.Content[0].AnchorWords = []string{}
 	cfg.Content[0].IntroSeconds, cfg.Content[0].RevealSeconds, cfg.Content[0].HoldSeconds = 0.3, 1.5, 1
 	cfg.Content[0].RevealOrder = "random"
 	seed := int64(10)

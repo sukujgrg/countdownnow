@@ -166,7 +166,7 @@ Scripture settings:
 
 - `text` and `reference` are required. `translation` is optional.
 - `anchor_words` selects the words revealed at the start. In Remotion, these words, the label and reference ease in over at least 2 seconds, with subtle softening and the selected reveal style. Longer `fade_seconds` values also apply to this opening. Brief slides shorten the entrance so it finishes before the reading hold; an intro of zero still fades in gently. Matching ignores capitalization and surrounding punctuation; every occurrence of a selected word appears. Omit this field to select a few words automatically, or use `[]` to start with no words.
-- `reveal_order`: `random` (default) or `normal`. This changes which word appears next, while leaving sentence positions unchanged.
+- `reveal_order`: `random` (default) or `normal`. This changes which word appears next, while leaving sentence positions unchanged. The pacing varies with word length instead of a fixed interval; normal order also leaves a little breathing room after punctuation. Both orders finish within the same reveal window.
 - `seed`: optional signed integer. The same seed and verse produce the same order on every render. Omit it for a stable seed derived from the verse text and reference. Change it for a different arrangement. Seed `0` is valid. It has no effect in normal order.
 - `reveal_style`: `gentle-lift` (default) or `soft-dissolve` (no movement). Scripture words use an overdamped Remotion spring to come softly into focus; `gentle-lift` adds a very small settle of at most 2.5 pixels. There is no bounce or word zoom, and words keep their final sentence positions. Opacity eases across the full `fade_seconds`; all motion ends before the reading hold. This works with either reveal order, including the first anchor words. The legacy renderer uses opacity fades and supports the same order/seed settings.
 - `fade_seconds`: each word's reveal length, default 1.2 seconds. Reveals can overlap to keep them soft. This is capped by `reveal_seconds` so all words finish before the reading hold.
@@ -303,6 +303,12 @@ Render the short church example, with both reveal orders and a quiet statement b
 
 ```sh
 ./countdownnow --content examples/calm-church-demo.json --duration 33 --theme warm --outro fade --output calm-church-countdown.mp4
+```
+
+The five-minute playlist moves directly between ten scriptures, without reflection-prompt slides. Each verse starts with no visible verse words (`anchor_words: []`). After a brief 0.8-second introduction, every word softly fills in in reading order, with breathing room at punctuation. Short verses fill in sooner; longer passages get more reveal and reading time. The playlist takes 297 seconds, followed by the default three-second closing scene:
+
+```sh
+./countdownnow --content examples/church-5min.json --duration 300 --output church-5min.mp4
 ```
 
 Compare the calmer scripture effect with normal order first and a repeatable random order second:

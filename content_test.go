@@ -164,6 +164,73 @@ func TestRevealCompletesBeforeFullReadingHold(t *testing.T) {
 	}
 }
 
+func TestEmptyScriptureRevealsEveryWordWithinItsWindow(t *testing.T) {
+	for _, text := range []string{"Peace.", "Be still.", "Be still, and know that I am God."} {
+		for _, orderName := range []string{"normal", "random"} {
+			for _, reveal := range []float64{0.1, 1.6, 12.2} {
+				slide := testScripture()
+				slide.Text, slide.AnchorWords, slide.RevealOrder = text, []string{}, orderName
+				slide.IntroSeconds, slide.RevealSeconds, slide.FadeSeconds = 0.8, reveal, 1.6
+				item := scheduledContent{Slide: slide, Start: 10}
+				times, fade, err := revealTimes(item)
+				if err != nil {
+					t.Fatal(err)
+				}
+				order := contentRevealOrder(slide, map[int]bool{})
+				start := item.Start + slide.IntroSeconds
+				if times[order[0]] != start {
+					t.Fatal("empty verse did not start filling in immediately after the intro")
+				}
+				previous := start
+				for _, i := range order {
+					if times[i] < previous || times[i]+fade > start+reveal+1e-7 {
+						t.Fatalf("word escaped its reveal window: %v, fade %v", times, fade)
+					}
+					previous = times[i]
+				}
+				if len(order) > 1 && math.Abs(previous+fade-(start+reveal)) > 1e-7 {
+					t.Fatal("reveal changed the full-verse reading hold")
+				}
+				repeat, _, _ := revealTimes(item)
+				if !reflect.DeepEqual(times, repeat) {
+					t.Fatal("reveal cadence changed on repeat")
+				}
+			}
+		}
+	}
+}
+
+func TestReadingOrderRevealPacesWordsAndPunctuation(t *testing.T) {
+	slide := testScripture()
+	slide.Text, slide.AnchorWords = "Be wonderfully calm, and rest.", []string{}
+	times, _, err := revealTimes(scheduledContent{Slide: slide})
+	if err != nil {
+		t.Fatal(err)
+	}
+	shortGap, longGap, commaGap := times[1]-times[0], times[2]-times[1], times[3]-times[2]
+	if longGap <= shortGap*1.3 || commaGap <= shortGap*1.3 {
+		t.Fatalf("word cadence needs breathing room: short %v, long %v, comma %v", shortGap, longGap, commaGap)
+	}
+	// Randomly placed words still have varied timing, but punctuation cannot
+	// pause a sentence that is not being revealed in reading order.
+	slide.RevealOrder = "random"
+	seed := int64(10)
+	slide.Seed = &seed
+	times, _, err = revealTimes(scheduledContent{Slide: slide})
+	if err != nil {
+		t.Fatal(err)
+	}
+	order := contentRevealOrder(slide, map[int]bool{})
+	minGap, maxGap := math.Inf(1), 0.0
+	for i := 1; i < len(order); i++ {
+		gap := times[order[i]] - times[order[i-1]]
+		minGap, maxGap = math.Min(minGap, gap), math.Max(maxGap, gap)
+	}
+	if maxGap <= minGap*1.3 {
+		t.Fatal("random reveal still uses a mechanical fixed interval")
+	}
+}
+
 func TestContentLayoutFitsPresetsAndPreservesWordOrder(t *testing.T) {
 	parsed, err := opentype.Parse(embeddedPassionOneBold)
 	if err != nil {
